@@ -4,7 +4,18 @@ use tray_icon::{
     menu::{Menu, MenuEvent, MenuItem},
     Icon, TrayIconBuilder,
 };
-const APP_ICON: &[u8] = include_bytes!("../icon/trayIcon.ico");
+
+struct AppIcons {
+    cloudflare_dark_active: &'static [u8],
+    cloudflare_inactive: &'static [u8],
+    cloudflare_light_active: &'static [u8],
+}
+
+const APP_ICONS: AppIcons = AppIcons {
+    cloudflare_dark_active: include_bytes!("../icon/cloudflare-dark-active.ico"),
+    cloudflare_inactive: include_bytes!("../icon/cloudflare-inactive.ico"),
+    cloudflare_light_active: include_bytes!("../icon/cloudflare-light-active.ico"),
+};
 
 fn load_tray_icon(image_data: &[u8]) -> Icon {
     let image = image::load_from_memory(image_data).expect("Failed to load icon image data");
@@ -37,7 +48,7 @@ fn main() {
     let _tray_icon = TrayIconBuilder::new()
         .with_menu(Box::new(tray_menu))
         .with_tooltip("warp-cli wrapper")
-        .with_icon(load_tray_icon(APP_ICON))
+        .with_icon(load_tray_icon(APP_ICONS.cloudflare_inactive))
         .build()
         .expect("Failed to build tray icon");
 
