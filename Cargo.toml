@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+glib = "0.20.9"
 gtk = "0.18.2"
 image = "0.25.5"
 tray-icon = "0.20.0"

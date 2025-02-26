@@ -1,9 +1,19 @@
 use gtk::prelude::*;
-use std::process::Command;
+use std::{process::Command, time::Duration};
 use tray_icon::{
     menu::{Menu, MenuEvent, MenuItem},
     Icon, TrayIconBuilder,
 };
+
+fn condition() -> bool {
+    use std::process::Command;
+    let output = Command::new("warp-cli")
+        .arg("status")
+        .output()
+        .expect("Failed to execute warp-cli status command");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    stdout.contains("Status update: Disconnected")
+}
 
 struct AppIcons {
     cloudflare_dark_active: &'static [u8],
@@ -45,16 +55,32 @@ fn main() {
     tray_menu.append(&quit_item).unwrap();
 
     // Build the tray icon with the above menu and icon image.
-    let _tray_icon = TrayIconBuilder::new()
+    let tray_icon = TrayIconBuilder::new()
         .with_menu(Box::new(tray_menu))
         .with_tooltip("warp-cli wrapper")
         .with_icon(load_tray_icon(APP_ICONS.cloudflare_inactive))
         .build()
         .expect("Failed to build tray icon");
 
+    // Clone the tray icon so it can be used inside the timeout closure.
+    let tray_icon_ptr = tray_icon.clone();
+
+    // A simple toggle variable to simulate condition changes.
+    let mut toggle = false;
     // Spawn a thread to listen for menu events.
     // Each menu item is identified by its unique ID.
     // In the event loop thread:
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
     std::thread::spawn(|| {
         loop {
             match tray_icon::menu::MenuEvent::receiver().recv() {
@@ -108,6 +134,22 @@ fn main() {
         }
     });
 
-    // Start the GTK main loop so that the tray icon remains active.
+    // Set up a GLib timeout to check the condition every 2 seconds.
+    glib::timeout_add_local(Duration::from_secs(2), move || {
+        // Toggle the condition value.
+        // toggle = !toggle;
+        // Alternatively, you could call: let is_active = condition();
+        let is_active = condition();
+
+        if is_active {
+            tray_icon_ptr.set_icon(Some(load_tray_icon(APP_ICONS.cloudflare_dark_active)));
+        } else {
+            tray_icon_ptr.set_icon(Some(load_tray_icon(APP_ICONS.cloudflare_inactive)));
+        }
+        // Continue the timeout indefinitely.
+        glib::ControlFlow::Continue
+    });
+
+    // Start the GTK main loop so the tray icon remains active.
     gtk::main();
 }
