@@ -109,9 +109,10 @@ pub fn is_dark_mode_enabled() -> bool {
 
 fn get_active_tray_icon() -> &'static [u8] {
     if is_dark_mode_enabled() {
-        TRAY_ICON_DARK_ACTIVE
-    } else {
         TRAY_ICON_LIGHT_ACTIVE
+        
+    } else {
+        TRAY_ICON_DARK_ACTIVE
     }
 }
 fn is_warp_disconnected() -> bool {
