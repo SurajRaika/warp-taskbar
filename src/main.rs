@@ -4,8 +4,117 @@ use tray_icon::{
     menu::{Menu, MenuEvent, MenuItem},
     Icon, TrayIconBuilder,
 };
+use std::env;
+use std::fs;
+use std::path::Path;
 
-fn condition() -> bool {
+static TRAY_ICON_DARK_ACTIVE: &[u8] = include_bytes!("../icon/cloudflare-dark-active.ico");
+static TRAY_ICON_INACTIVE: &[u8] = include_bytes!("../icon/cloudflare-inactive.ico");
+static TRAY_ICON_LIGHT_ACTIVE: &[u8] = include_bytes!("../icon/cloudflare-light-active.ico");
+
+
+pub fn is_dark_mode_enabled() -> bool {
+    // Check for GNOME
+    if let Ok(output) = Command::new("gsettings")
+        .args(["get", "org.gnome.desktop.interface", "color-scheme"])
+        .output() 
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("dark") {
+            return true;
+        }
+    }
+    
+    // Check for KDE Plasma
+    if let Some(home) = env::var_os("HOME") {
+        let kde_config_path = Path::new(&home).join(".config").join("kdeglobals");
+        if kde_config_path.exists() {
+            if let Ok(content) = fs::read_to_string(kde_config_path) {
+                // KDE has multiple ways to specify dark theme
+                if content.contains("[Colors:View]") && content.contains("BackgroundNormal=") {
+                    // Check for dark background color values
+                    // This is a simplification; a more robust implementation would parse the color values
+                    if content.contains("BackgroundNormal=35,38,41") {
+                        return true;
+                    }
+                }
+                
+                // Check if a dark theme is explicitly set
+                if content.contains("ColorScheme=BreezeDark") || 
+                   content.contains("name=Breeze Dark") {
+                    return true;
+                }
+            }
+        }
+    }
+    
+    // Check for XFCE
+    if let Ok(output) = Command::new("xfconf-query")
+        .args(["-c", "xsettings", "-p", "/Net/ThemeName"])
+        .output() 
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("dark") || stdout.contains("Dark") {
+            return true;
+        }
+    }
+    
+    // Check for Cinnamon
+    if let Ok(output) = Command::new("gsettings")
+        .args(["get", "org.cinnamon.desktop.interface", "gtk-theme"])
+        .output() 
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("dark") || stdout.contains("Dark") {
+            return true;
+        }
+    }
+    
+    // Check for MATE
+    if let Ok(output) = Command::new("gsettings")
+        .args(["get", "org.mate.interface", "gtk-theme"])
+        .output() 
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("dark") || stdout.contains("Dark") {
+            return true;
+        }
+    }
+    
+    // Check for Elementary OS
+    if let Ok(output) = Command::new("gsettings")
+        .args(["get", "io.elementary.terminal.settings", "prefer-dark-style"])
+        .output() 
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("true") {
+            return true;
+        }
+    }
+    
+    // Fallback to checking GTK theme settings in general
+    if let Ok(output) = Command::new("gsettings")
+        .args(["get", "org.gnome.desktop.interface", "gtk-theme"])
+        .output() 
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("dark") || stdout.contains("Dark") {
+            return true;
+        }
+    }
+    
+    false
+}
+
+
+fn get_active_tray_icon() -> &'static [u8] {
+    if is_dark_mode_enabled() {
+        TRAY_ICON_DARK_ACTIVE
+    } else {
+        TRAY_ICON_LIGHT_ACTIVE
+    }
+}
+fn is_warp_disconnected() -> bool {
     use std::process::Command;
     let output = Command::new("warp-cli")
         .arg("status")
@@ -139,12 +248,12 @@ fn main() {
         // Toggle the condition value.
         // toggle = !toggle;
         // Alternatively, you could call: let is_active = condition();
-        let is_active = condition();
+        let is_inactive = is_warp_disconnected();
 
-        if is_active {
-            tray_icon_ptr.set_icon(Some(load_tray_icon(APP_ICONS.cloudflare_dark_active)));
+        if is_inactive {
+            tray_icon_ptr.set_icon(Some(load_tray_icon(TRAY_ICON_INACTIVE)));
         } else {
-            tray_icon_ptr.set_icon(Some(load_tray_icon(APP_ICONS.cloudflare_inactive)));
+            tray_icon_ptr.set_icon(Some(load_tray_icon(get_active_tray_icon())));
         }
         // Continue the timeout indefinitely.
         glib::ControlFlow::Continue
